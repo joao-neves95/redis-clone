@@ -1,13 +1,13 @@
-use super::shared::{RespData, RespDataTypesFirstByte};
+use super::shared::{RespDataType, RespDataTypesFirstByte};
 use crate::utils::{concat_u32, LineEndings};
 
 use anyhow::Error;
 
 // E.g.: "*$4\r\nPING\r\n"
-pub fn move_resp_bulk_string(
+pub(crate) fn move_resp_bulk_string(
     command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::str::Chars<'_>>>,
     current_char: &Option<(usize, char)>,
-) -> Result<RespData, Error> {
+) -> Result<RespDataType, Error> {
     if current_char.is_none()
         || current_char.unwrap().1 != RespDataTypesFirstByte::BULK_STRINGS_CHAR
     {
@@ -35,9 +35,56 @@ pub fn move_resp_bulk_string(
 
     move_to_crlf_end(command_iter);
 
-    Ok(RespData::BulkString {
+    Ok(RespDataType::BulkString {
         size: string_length,
         value: bulk_string,
+    })
+}
+
+// E.g.: "*+OK\r\n"
+pub(crate) fn move_resp_simple_string(
+    command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::str::Chars<'_>>>,
+    current_char: &Option<(usize, char)>,
+) -> Result<RespDataType, Error> {
+    if current_char.is_none()
+        || current_char.unwrap().1 != RespDataTypesFirstByte::SIMPLE_STRINGS_CHAR
+    {
+        return Err(Error::msg(
+            "Could not parse command: Command malformed, expected a simple string.",
+        ));
+    }
+
+    let mut current_char = command_iter.next();
+    let mut simple_string = String::new();
+
+    while current_char.is_some() {
+        let (_, char) = current_char.unwrap();
+
+        if char != LineEndings::CR_CHAR {
+            simple_string.push(char);
+            current_char = command_iter.next();
+            continue;
+        }
+
+        current_char = command_iter.next();
+
+        match current_char {
+            None => return Err(Error::msg(
+                "Could not parse command: Command malformed, reached end without CRLF termination.",
+            )),
+
+            Some((_, char)) => {
+                if char == LineEndings::LF_CHAR {
+                    break;
+                }
+
+                simple_string.push(char);
+            }
+        };
+    }
+
+    Ok(RespDataType::SimpleString {
+        value: simple_string,
     })
 }
 
@@ -85,7 +132,7 @@ fn get_data_length_number(current_char: char) -> Result<u32, Error> {
 }
 
 /// Moves the iterator to the `\n` char in `\r\n`.
-pub fn move_to_crlf_end(
+pub(crate) fn move_to_crlf_end(
     command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::str::Chars<'_>>>,
 ) -> Option<(usize, char)> {
     let mut current_char = command_iter.next();

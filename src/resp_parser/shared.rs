@@ -1,36 +1,51 @@
 pub struct RespCommandNames {}
 
 impl RespCommandNames {
-    pub const PING: &str = "PING";
-    pub const ECHO: &str = "ECHO";
-    pub const GET: &str = "GET";
-    pub const SET: &str = "SET";
+    pub const PING: &'static str = "PING";
+    pub const REPLCONF: &'static str = "REPLCONF";
+    pub const PSYNC: &'static str = "PSYNC";
+    pub const ECHO: &'static str = "ECHO";
+    pub const INFO: &'static str = "INFO";
+    pub const GET: &'static str = "GET";
+    pub const SET: &'static str = "SET";
+}
+
+pub struct RespCommandResponseNames {}
+
+impl RespCommandResponseNames {
+    pub const OK: &'static str = "OK";
+    pub const PONG: &'static str = "PONG";
 }
 
 pub struct RespCommandSetOptions {}
 
 impl RespCommandSetOptions {
-    pub const EXPIRY: &str = "PX";
+    pub const EXPIRY: &'static str = "PX";
 }
 
 pub struct RespDataTypesFirstByte {}
 
 impl RespDataTypesFirstByte {
-    pub const ARRAYS_STR: &str = "*";
+    pub const ARRAYS_STR: &'static str = "*";
 
     pub const BULK_STRINGS_CHAR: char = '$';
+
+    pub const SIMPLE_STRINGS_CHAR: char = '+';
+    pub const SIMPLE_STRINGS_BYTE: u8 = b'+';
 }
 
 #[derive(Debug)]
-pub enum RespData {
+pub enum RespDataType {
     BulkString { size: u32, value: String },
+    SimpleString { value: String },
 }
 
-impl RespData {
-    pub fn get_bulk_string_value(&self) -> &String {
-        let RespData::BulkString { size: _, value } = self;
-
-        value
+impl RespDataType {
+    pub fn get_value_string(&self) -> String {
+        match self {
+            RespDataType::BulkString { size: _, value } => value.to_owned(),
+            RespDataType::SimpleString { value } => value.to_owned(),
+        }
     }
 }
 
