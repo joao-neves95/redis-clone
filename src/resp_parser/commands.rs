@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     data_types::move_to_crlf_end,
-    shared::{RespCommand, RespCommandNames, RespDataTypesFirstByte},
+    shared::{RespCommand, RespDataTypesFirstByte},
 };
 
 /// Input examples: <br/>

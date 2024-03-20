@@ -13,6 +13,7 @@ use anyhow::{Error, Result};
 
 const DEFAULT_LISTENING_PORT: u32 = 6379;
 const TCP_READ_TIMEOUT: Duration = Duration::from_millis(1000);
+const TCP_READ_TIMEOUT_MAX_RETRIES: u8 = 3;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {

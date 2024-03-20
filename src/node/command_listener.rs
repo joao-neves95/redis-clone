@@ -8,10 +8,13 @@ use tokio::{
 };
 
 use crate::{
-    models::{app_context::AppContext, db::InMemoryDb},
+    models::{
+        app_context::{AppContext, Response},
+        db::InMemoryDb,
+    },
     node::command_handlers,
     resp_parser::{self, shared::RespCommandNames},
-    TCP_READ_TIMEOUT,
+    TCP_READ_TIMEOUT, TCP_READ_TIMEOUT_MAX_RETRIES,
 };
 
 pub(crate) async fn run(mem_db: &Arc<Mutex<InMemoryDb>>) -> Result<(), Error> {
@@ -24,8 +27,8 @@ pub(crate) async fn run(mem_db: &Arc<Mutex<InMemoryDb>>) -> Result<(), Error> {
 
     loop {
         let _ = match listener.accept().await {
-            Ok((mut _tcp_stream, _)) => {
-                println!("accepted new connection");
+            Ok((mut _tcp_stream, addy)) => {
+                println!("accepted new connection from {}", addy.ip());
 
                 let mem_db_arc_pointer = Arc::clone(&mem_db);
 
@@ -51,6 +54,8 @@ async fn handle_client_connection<'a>(
     mem_db: &Arc<Mutex<InMemoryDb>>,
     tcp_stream: &mut TcpStream,
 ) -> Result<(), anyhow::Error> {
+    let mut num_of_retries = 0;
+
     loop {
         let mut request_buffer: [u8; 1024] = [0; 1024];
 
@@ -59,22 +64,33 @@ async fn handle_client_connection<'a>(
         match tokio::time::timeout(TCP_READ_TIMEOUT, tcp_stream.read(&mut request_buffer)).await {
             Err(e) => {
                 println!("timeout while reading request - {}", e);
-                break;
-            }
-            Ok(read_result) => {
-                let request_len = read_result?;
 
-                println!("request received of len {}", request_len);
-
-                if request_len == 0 {
+                if num_of_retries == TCP_READ_TIMEOUT_MAX_RETRIES {
                     break;
                 }
 
-                let command_response = handle_command(mem_db, &request_buffer).await?;
-                tcp_stream.write_all(command_response.as_bytes()).await?;
-                tcp_stream.flush().await
+                num_of_retries += 1;
+                continue;
             }
-        }?;
+            Ok(read_result) => {
+                let request_byte_count = read_result?;
+
+                println!("request received of len {}", request_byte_count);
+
+                if request_byte_count == 0 {
+                    // The socket is closed.
+                    break;
+                }
+
+                let command_response =
+                    // `request_byte_count + 1` to pad it with a 0.
+                    handle_command(mem_db, &request_buffer[..request_byte_count + 1]).await?;
+
+                println!("sending response - {:?}", command_response);
+                tcp_stream.write_all(command_response.as_bytes()).await?;
+                tcp_stream.flush().await?;
+            }
+        };
 
         println!("finished reading request");
     }
