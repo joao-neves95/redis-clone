@@ -4,7 +4,7 @@ A Redis clone made in vanilla Rust, and Tokio for multithreading.
 
 ## Architecture
 - Command listener:
-    - The server listens for connections and handles them in [./src/resp_parser/commands.rs](./src/node/command_listener.rs).
+    - The server listens for connections and handles them in [./src/node/command_listener.rs](./src/node/command_listener.rs).
     - Modules:
         - Command parser:
           - Redis has its own raw tcp protocol command syntax - Redis serialization protocol (RESP).
