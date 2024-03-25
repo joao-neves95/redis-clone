@@ -1,15 +1,15 @@
-use super::db::AppDataReplication;
+use super::db::app_data::AppDataReplication;
 
 #[derive(Debug)]
 pub struct AppCliArgs {
-    pub port: u32,
+    pub port: u16,
     pub replica_of: Option<CliArgsReplication>,
 }
 
 #[derive(Debug)]
 pub struct CliArgsReplication {
     pub master_host: String,
-    pub master_port: u32,
+    pub master_port: u16,
 }
 
 impl Into<AppDataReplication> for CliArgsReplication {

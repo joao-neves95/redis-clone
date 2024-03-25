@@ -34,6 +34,29 @@ impl LineEndings {
     pub const CR_BYTE: u8 = b'\r';
 }
 
+pub fn return_err<T>(message: String) -> Result<T, Error> {
+    return Err(Error::msg(message));
+}
+
+pub fn hex_to_utf8_bytes(hex_buff: &[u8]) -> Result<Vec<u8>, Error> {
+    let bytes = hex_buff
+        .chunks(2)
+        .map(|hex_byte_chunk| {
+            let hex_str = match std::str::from_utf8(hex_byte_chunk) {
+                Err(_) => panic!("Could not parse hex buffer: Not UTF-8."),
+                Ok(str) => str,
+            };
+
+            match u8::from_str_radix(hex_str, 16) {
+                Err(_) => panic!("Could not parse hex buffer: Not HEX."),
+                Ok(hex_byte) => hex_byte,
+            }
+        })
+        .collect();
+
+    Ok(bytes)
+}
+
 /// It will stop when it reaches a 0 value byte. At the moment this has no overflow protection whatsoever.
 pub fn delete_bytes_after_first_crlf(buff: &mut [u8]) -> &[u8] {
     let mut i = 0;
@@ -85,6 +108,32 @@ pub fn u32_count(value: u32) -> u32 {
     counter
 }
 
+/// Copies `source` from index 0 into `target` from the inclusive `start` and stops when the result of the `until` closure is true. <br/>
+/// This function does not offer overflow protection, so the caller has to account for that.
+///
+/// `start`: start index of target to copy into.
+/// `until`: closure with a predicate to stop the copy. Receives (current item, current target index, current source index).
+pub fn copy_to_array_until<T, F>(target: &mut [T], source: &[T], start: usize, until: F)
+where
+    T: Copy,
+    F: Fn(T, usize, usize) -> bool,
+{
+    let mut i_target: usize = start;
+    let mut i_source: usize = 0;
+
+    loop {
+        let item = source[i_source];
+
+        if until(item, i_target, i_source) {
+            break;
+        }
+
+        target[i_target] = item;
+        i_target += 1;
+        i_source += 1;
+    }
+}
+
 // const ALPHANUMERIC_BYTES: &[u8; 62] = b"1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const ALPHANUMERIC_BYTES: &[u8; 62] =
     b"1a2b3c4d5e6f7g8h9i0jklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -106,8 +155,10 @@ pub fn pseudo_random_ascii_alphanumeric(size: u32) -> Result<String, Error> {
     Ok(value)
 }
 
+#[allow(dead_code)]
 const MAX_ASCII_CHAR: u8 = 127;
 
+#[allow(dead_code)]
 pub fn pseudo_random_ascii(size: u32) -> Result<String, Error> {
     let mut value = String::new();
 

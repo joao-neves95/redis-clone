@@ -1,20 +1,24 @@
 use anyhow::{Error, Result};
 
 use crate::{
-    models::app_context::AppContext, resp_parser::data_types::move_resp_bulk_string,
+    models::connection_context::ConnectionContext, resp_parser::data_types::move_resp_bulk_string,
     utils::LineEndings,
 };
 
 use super::{
     data_types::move_to_crlf_end,
-    shared::{RespCommand, RespDataTypesFirstByte},
+    shared::{RespCommand, RespCommandType, RespDataTypesFirstByte},
 };
 
+/// Parses the raw command buffer in `context.request.buffer` into a [`RespCommand`] and
+/// populates `context.request.resp_command` with it.
+///
 /// Input examples: <br/>
 /// "*1\r\n$4\r\nping\r\n" <br/>
 /// "*2\r\n$4\r\necho\r\n$3\r\nhey\r\n" <br/>
-pub(crate) fn parse_resp_proc_command(context: &mut AppContext<'_>) -> Result<(), Error> {
-    let raw_command = context.get_request_ref().raw_command;
+pub(crate) fn parse_resp_proc_command(context: &mut ConnectionContext<'_>) -> Result<(), Error> {
+    // TODO: Use the raw bytes themselves.
+    let raw_command = std::str::from_utf8(&context.get_request_ref().buffer)?;
 
     if !raw_command.starts_with(RespDataTypesFirstByte::ARRAYS_STR) {
         return Err(Error::msg(
@@ -88,6 +92,7 @@ fn parse_resp_multi_param_command_body<'a>(
 
     Ok(RespCommand {
         name: command_name.to_owned(),
+        command_type: RespCommandType::from_command_name(command_name),
         parameters,
     })
 }
@@ -95,17 +100,26 @@ fn parse_resp_multi_param_command_body<'a>(
 #[cfg(test)]
 mod tests {
     use crate::{
-        models::app_context::AppContext,
+        models::connection_context::ConnectionContext,
         resp_parser::{parse_resp_proc_command, shared::RespCommandNames},
-        test_helpers::utils::create_test_mem_db,
+        test_helpers::utils::{create_test_mem_db, create_test_tstream},
+        utils::copy_to_array_until,
     };
 
     #[tokio::test]
     async fn parse_resp_proc_command_should_parse_known_commands() -> Result<(), anyhow::Error> {
-        let request_buffer = b"*1\r\n$4\r\npiNg\r\n";
-
+        let fake_tcp_stream = &mut create_test_tstream();
         let fake_mem_db = create_test_mem_db()?;
-        let mut fake_app_context = AppContext::new(&fake_mem_db, request_buffer)?;
+
+        let mut fake_app_context = ConnectionContext::new(&fake_mem_db, &fake_tcp_stream)?;
+
+        let request_buffer = b"*1\r\n$4\r\npiNg\r\n";
+        copy_to_array_until(
+            &mut fake_app_context.request.buffer,
+            request_buffer,
+            0,
+            |_, _, source_idx| source_idx == request_buffer.len() - 1,
+        );
 
         parse_resp_proc_command(&mut fake_app_context)?;
         assert_eq!(

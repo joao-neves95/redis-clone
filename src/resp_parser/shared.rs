@@ -1,3 +1,14 @@
+pub struct RespDataTypesFirstByte {}
+
+impl RespDataTypesFirstByte {
+    pub const ARRAYS_STR: &'static str = "*";
+
+    pub const BULK_STRINGS_CHAR: char = '$';
+
+    pub const SIMPLE_STRINGS_CHAR: char = '+';
+    pub const SIMPLE_STRINGS_BYTE: u8 = b'+';
+}
+
 pub struct RespCommandNames {}
 
 impl RespCommandNames {
@@ -8,6 +19,21 @@ impl RespCommandNames {
     pub const INFO: &'static str = "INFO";
     pub const GET: &'static str = "GET";
     pub const SET: &'static str = "SET";
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RespCommandType {
+    Read,
+    Write,
+}
+
+impl RespCommandType {
+    pub fn from_command_name(command_name: &str) -> RespCommandType {
+        match command_name {
+            RespCommandNames::SET => RespCommandType::Write,
+            _ => RespCommandType::Read,
+        }
+    }
 }
 
 pub struct RespCommandResponseNames {}
@@ -23,15 +49,10 @@ impl RespCommandSetOptions {
     pub const EXPIRY: &'static str = "PX";
 }
 
-pub struct RespDataTypesFirstByte {}
+pub struct RespCommandReplConfOption {}
 
-impl RespDataTypesFirstByte {
-    pub const ARRAYS_STR: &'static str = "*";
-
-    pub const BULK_STRINGS_CHAR: char = '$';
-
-    pub const SIMPLE_STRINGS_CHAR: char = '+';
-    pub const SIMPLE_STRINGS_BYTE: u8 = b'+';
+impl RespCommandReplConfOption {
+    pub const LISTENING_PORT: &'static str = "listening-port";
 }
 
 #[derive(Debug)]
@@ -52,6 +73,8 @@ impl RespDataType {
 #[derive(Debug)]
 pub struct RespCommand {
     pub name: String,
+
+    pub command_type: RespCommandType,
 
     pub parameters: Vec<String>,
 }

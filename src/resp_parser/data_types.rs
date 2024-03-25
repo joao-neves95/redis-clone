@@ -1,5 +1,5 @@
 use super::shared::{RespDataType, RespDataTypesFirstByte};
-use crate::utils::{concat_u32, LineEndings};
+use crate::utils::{concat_u32, return_err, LineEndings};
 
 use anyhow::Error;
 
@@ -11,9 +11,9 @@ pub(crate) fn move_resp_bulk_string(
     if current_char.is_none()
         || current_char.unwrap().1 != RespDataTypesFirstByte::BULK_STRINGS_CHAR
     {
-        return Err(Error::msg(
-            "Could not parse command: Command malformed, expected a bulk string.",
-        ));
+        return return_err(
+            "Could not parse command: Command malformed, expected a bulk string.".to_owned(),
+        );
     }
 
     let current_char = command_iter.next();

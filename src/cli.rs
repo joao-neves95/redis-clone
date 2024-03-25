@@ -23,7 +23,7 @@ pub fn parse_cli_args() -> Result<AppCliArgs, Error> {
 
         match &mut current_arg.unwrap().to_lowercase().as_str() {
             &mut AppCliFlagName::PORT | &mut AppCliFlagName::PORT_SHORT => {
-                flags.port = match next_arg.unwrap_or(&"".to_owned()).parse::<u32>() {
+                flags.port = match next_arg.unwrap_or(&"".to_owned()).parse::<u16>() {
                     Err(_) => {
                         return Err(Error::msg(
                             "The CLI could not parse port to listen to - Invalid number.",
@@ -52,7 +52,7 @@ pub fn parse_cli_args() -> Result<AppCliArgs, Error> {
                             "The CLI could not parse port for replication - No argument found.",
                         )),
                         Some(port) => {
-                            match port.parse::<u32>() {
+                            match port.parse::<u16>() {
                                 Err(_) => return Err(Error::msg(
                                     "The CLI could not parse port for replication - Not a valid number.",
                                 )),

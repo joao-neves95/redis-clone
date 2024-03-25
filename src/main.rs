@@ -5,13 +5,13 @@ mod resp_parser;
 mod test_helpers;
 mod utils;
 
-use models::db::{AppData, InMemoryDb};
+use models::db::{app_data::AppData, in_memory_db::InMemoryDb};
 
 use std::time::Duration;
 
 use anyhow::{Error, Result};
 
-const DEFAULT_LISTENING_PORT: u32 = 6379;
+const DEFAULT_LISTENING_PORT: u16 = 6379;
 const TCP_READ_TIMEOUT: Duration = Duration::from_millis(1000);
 const TCP_READ_TIMEOUT_MAX_RETRIES: u8 = 3;
 
@@ -29,10 +29,14 @@ async fn main() -> Result<(), Error> {
     let mem_db = InMemoryDb::new(app_data)?;
 
     if is_replica {
-        match node::replica_handshake::run(&mem_db).await {
+        println!("Running server in replica mode.");
+
+        match node::replica::handshake(&mem_db).await {
             Err(e) => println!("Error while performing handshake with master: {:?}", e),
             Ok(_) => {}
         };
+    } else {
+        println!("Running server in master mode.");
     }
 
     node::command_listener::run(&mem_db).await?;
