@@ -147,6 +147,7 @@ async fn handle_client_connection<'a>(
 
 async fn handle_command<'a>(app_context: &mut ConnectionContext<'a>) -> Result<(), anyhow::Error> {
     app_context.println_by("parsing request").await;
+
     resp_parser::parse_resp_proc_command(app_context)?;
 
     app_context
@@ -215,6 +216,7 @@ mod tests {
             0,
             |_, _, source_idx| source_idx == request_buffer.len() - 1,
         );
+        fake_app_context.request.byte_count = request_buffer.len();
 
         parse_resp_proc_command(&mut fake_app_context)?;
         assert_eq!(
@@ -265,6 +267,7 @@ mod tests {
             0,
             |_, _, source_idx| source_idx == request_buffer.len() - 1,
         );
+        fake_app_context.request.byte_count = request_buffer.len();
 
         parse_resp_proc_command(&mut fake_app_context)?;
         assert_eq!(
@@ -317,6 +320,7 @@ mod tests {
             0,
             |_, _, source_idx| source_idx == request_buffer_set.len() - 1,
         );
+        fake_app_context_set.request.byte_count = request_buffer_set.len();
 
         parse_resp_proc_command(&mut fake_app_context_set)?;
         assert_eq!(
@@ -364,6 +368,7 @@ mod tests {
             0,
             |_, _, source_idx| source_idx == request_buffer_get.len() - 1,
         );
+        fake_app_context_get.request.byte_count = request_buffer_get.len();
 
         parse_resp_proc_command(&mut fake_app_context_get)?;
         assert_eq!(

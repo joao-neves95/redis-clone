@@ -1,13 +1,10 @@
 use crate::{
-    models::{
-        connection_context::InternalRequest,
-        db::in_memory_db::InMemoryDb,
-    },
+    models::{connection_context::InternalRequest, db::in_memory_db::InMemoryDb},
     resp_parser::{
         self,
         shared::{RespCommandResponseNames, RespDataTypesFirstByte},
     },
-    TCP_READ_TIMEOUT, TCP_READ_TIMEOUT_MAX_RETRIES,
+    TCP_READ_TIMEOUT, TCP_READ_TIMEOUT_MAX_RETRIES, TCP_RESPONSE_BUFFER_SIZE,
 };
 
 use std::sync::Arc;
@@ -125,7 +122,7 @@ async fn await_response(
     while num_of_retries <= TCP_READ_TIMEOUT_MAX_RETRIES && !expected_response_predicate(&response)
     {
         num_of_retries += 1;
-        let mut request_buffer: [u8; 1024] = [0; 1024];
+        let mut request_buffer = [0; TCP_RESPONSE_BUFFER_SIZE];
 
         match tokio::time::timeout(TCP_READ_TIMEOUT, tcp_stream.read(&mut request_buffer)).await {
             Err(e) => {
@@ -133,7 +130,7 @@ async fn await_response(
                 break;
             }
             Result::Ok(read_result) => {
-                let request_len = match read_result {
+                let request_byte_count = match read_result {
                     Err(e) => {
                         const BASE_MESSAGE: &str = "Error while reading handshake response";
                         println!("{} - {:?}", BASE_MESSAGE, e);
@@ -143,25 +140,17 @@ async fn await_response(
                     Result::Ok(len) => len,
                 };
 
-                println!("request received of len {}", request_len);
+                println!("request received of len {}", request_byte_count);
 
-                if request_len == 0 {
+                if request_byte_count == 0 {
                     break;
                 }
 
-                let request =
-                    if request_buffer.starts_with(&[RespDataTypesFirstByte::SIMPLE_STRINGS_BYTE]) {
-                        InternalRequest {
-                            buffer: request_buffer,
-                        }
-                    } else {
-                        InternalRequest {
-                            buffer: request_buffer,
-                        }
-                    };
-
-                response =
-                    resp_parser::parse_redis_resp_proc_response(&request)?.get_value_string();
+                response = resp_parser::parse_redis_resp_proc_response(&InternalRequest {
+                    buffer: request_buffer,
+                    byte_count: request_byte_count,
+                })?
+                .get_value_string();
             }
         };
     }

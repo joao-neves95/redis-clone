@@ -5,11 +5,11 @@ use anyhow::Error;
 
 // E.g.: "*$4\r\nPING\r\n"
 pub(crate) fn move_resp_bulk_string(
-    command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::str::Chars<'_>>>,
-    current_char: &Option<(usize, char)>,
+    command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::slice::Iter<'_, char>>>,
+    current_char: &Option<(usize, &char)>,
 ) -> Result<RespDataType, Error> {
     if current_char.is_none()
-        || current_char.unwrap().1 != RespDataTypesFirstByte::BULK_STRINGS_CHAR
+        || current_char.unwrap().1 != &RespDataTypesFirstByte::BULK_STRINGS_CHAR
     {
         return return_err(
             "Could not parse command: Command malformed, expected a bulk string.".to_owned(),
@@ -30,7 +30,7 @@ pub(crate) fn move_resp_bulk_string(
             break;
         }
 
-        bulk_string.push(current_char.unwrap().1);
+        bulk_string.push(*current_char.unwrap().1);
     }
 
     move_to_crlf_end(command_iter);
@@ -43,11 +43,11 @@ pub(crate) fn move_resp_bulk_string(
 
 // E.g.: "*+OK\r\n"
 pub(crate) fn move_resp_simple_string(
-    command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::str::Chars<'_>>>,
-    current_char: &Option<(usize, char)>,
+    command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::slice::Iter<'_, char>>>,
+    current_char: &Option<(usize, &char)>,
 ) -> Result<RespDataType, Error> {
     if current_char.is_none()
-        || current_char.unwrap().1 != RespDataTypesFirstByte::SIMPLE_STRINGS_CHAR
+        || current_char.unwrap().1 != &RespDataTypesFirstByte::SIMPLE_STRINGS_CHAR
     {
         return Err(Error::msg(
             "Could not parse command: Command malformed, expected a simple string.",
@@ -60,8 +60,8 @@ pub(crate) fn move_resp_simple_string(
     while current_char.is_some() {
         let (_, char) = current_char.unwrap();
 
-        if char != LineEndings::CR_CHAR {
-            simple_string.push(char);
+        if char != &LineEndings::CR_CHAR {
+            simple_string.push(*char);
             current_char = command_iter.next();
             continue;
         }
@@ -74,11 +74,11 @@ pub(crate) fn move_resp_simple_string(
             )),
 
             Some((_, char)) => {
-                if char == LineEndings::LF_CHAR {
+                if char == &LineEndings::LF_CHAR {
                     break;
                 }
 
-                simple_string.push(char);
+                simple_string.push(*char);
             }
         };
     }
@@ -90,8 +90,8 @@ pub(crate) fn move_resp_simple_string(
 
 /// Extracts the data length and moves the iterator to the `\n` char in `\r\n`.
 fn move_collect_data_len_number(
-    command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::str::Chars<'_>>>,
-    current_char: &Option<(usize, char)>,
+    command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::slice::Iter<'_, char>>>,
+    current_char: &Option<(usize, &char)>,
 ) -> Result<u32, Error> {
     if current_char.is_none() || !current_char.unwrap().1.is_ascii_digit() {
         return Err(Error::msg(
@@ -122,7 +122,7 @@ fn move_collect_data_len_number(
     Ok(num)
 }
 
-fn get_data_length_number(current_char: char) -> Result<u32, Error> {
+fn get_data_length_number(current_char: &char) -> Result<u32, Error> {
     match current_char.to_digit(10) {
         None => Err(Error::msg(
             "Could not parse command: Command malformed, invalid number describing data length.",
@@ -132,15 +132,15 @@ fn get_data_length_number(current_char: char) -> Result<u32, Error> {
 }
 
 /// Moves the iterator to the `\n` char in `\r\n`.
-pub(crate) fn move_to_crlf_end(
-    command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::str::Chars<'_>>>,
-) -> Option<(usize, char)> {
+pub(crate) fn move_to_crlf_end<'a>(
+    command_iter: &mut std::iter::Peekable<std::iter::Enumerate<std::slice::Iter<'a, char>>>,
+) -> Option<(usize, &'a char)> {
     let mut current_char = command_iter.next();
 
     while current_char.is_some() {
         let (_, char) = current_char.unwrap();
 
-        if char != LineEndings::CR_CHAR {
+        if char != &LineEndings::CR_CHAR {
             current_char = command_iter.next();
             continue;
         }
@@ -151,7 +151,7 @@ pub(crate) fn move_to_crlf_end(
             None => return current_char,
 
             Some((_, char)) => {
-                if char == LineEndings::LF_CHAR {
+                if char == &LineEndings::LF_CHAR {
                     break;
                 }
             }

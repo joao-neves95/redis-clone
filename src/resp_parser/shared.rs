@@ -2,6 +2,7 @@ pub struct RespDataTypesFirstByte {}
 
 impl RespDataTypesFirstByte {
     pub const ARRAYS_STR: &'static str = "*";
+    pub const ARRAYS_BYTE: &'static [u8] = b"*";
 
     pub const BULK_STRINGS_CHAR: char = '$';
 

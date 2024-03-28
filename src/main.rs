@@ -12,6 +12,7 @@ use std::time::Duration;
 use anyhow::{Error, Result};
 
 const DEFAULT_LISTENING_PORT: u16 = 6379;
+const TCP_RESPONSE_BUFFER_SIZE: usize = 1024;
 const TCP_READ_TIMEOUT: Duration = Duration::from_millis(1000);
 const TCP_READ_TIMEOUT_MAX_RETRIES: u8 = 3;
 

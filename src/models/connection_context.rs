@@ -2,7 +2,7 @@ use super::{
     db::{app_data::AppData, in_memory_db::InMemoryDb},
     t_stream::TStream,
 };
-use crate::resp_parser::shared::RespCommand;
+use crate::{resp_parser::shared::RespCommand, TCP_RESPONSE_BUFFER_SIZE};
 
 use std::{fmt::Debug, sync::Arc};
 
@@ -31,7 +31,7 @@ impl<'a> ConnectionContext<'a> {
     }
 
     pub fn reset(&mut self) -> &Self {
-        self.request.buffer = [0; 1024];
+        self.request.buffer = [0; TCP_RESPONSE_BUFFER_SIZE];
         self.request.byte_count = 0;
         self.request.resp_command = None;
         self.response = Vec::new();
@@ -98,12 +98,13 @@ impl<'a> ConnectionContext<'a> {
 
 #[derive(Debug)]
 pub struct InternalRequest {
-    pub buffer: [u8; 1024],
+    pub buffer: [u8; TCP_RESPONSE_BUFFER_SIZE],
+    pub byte_count: usize,
 }
 
 #[derive(Debug)]
 pub struct Request<'a> {
-    pub buffer: [u8; 1024],
+    pub buffer: [u8; TCP_RESPONSE_BUFFER_SIZE],
     pub byte_count: usize,
     pub resp_command: Option<RespCommand>,
     pub tcp_stream: &'a Arc<Mutex<dyn TStream>>,
@@ -119,7 +120,7 @@ pub enum Handshake {
 impl<'a> Request<'a> {
     pub fn new(tcp_stream: &'a Arc<Mutex<dyn TStream>>) -> Self {
         Request {
-            buffer: [0; 1024],
+            buffer: [0; TCP_RESPONSE_BUFFER_SIZE],
             byte_count: 0,
             resp_command: None,
             tcp_stream,

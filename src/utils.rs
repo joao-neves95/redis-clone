@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::{iter::Map, ops::Index, time::SystemTime};
 
 use anyhow::Error;
 
@@ -26,6 +26,7 @@ pub struct LineEndings {}
 
 impl LineEndings {
     pub const CRLF_STR: &'static str = "\r\n";
+    pub const CRLF_BYTES: &'static [u8] = b"\r\n";
 
     pub const LF_CHAR: char = '\n';
     pub const LF_BYTE: u8 = b'\n';
@@ -55,6 +56,49 @@ pub fn hex_to_utf8_bytes(hex_buff: &[u8]) -> Result<Vec<u8>, Error> {
         .collect();
 
     Ok(bytes)
+}
+
+/// Splits the string on the first occurrence of the specified delimiter and
+/// returns prefix before delimiter and suffix after delimiter.
+///
+/// # Example:
+/// ```rust
+/// let source_bytes: &[u8] = &[1, 2, 3, 4, 5, 6, 7, 8, 9][..];
+/// let delimiter: &[u8] = &[3, 4][..];
+///
+/// assert_eq!(
+///     split_slice_once(source_bytes, delimiter),
+///     Some((&[1, 2][..], &[5, 6, 7, 8, 9][..]))
+/// );
+/// ```
+pub fn split_u8_slice_once<'a>(
+    source: &'a [u8],
+    delimiter: &'a [u8],
+) -> Option<(&'a [u8], &'a [u8])> {
+    match find_first_index_in_u8_slice(source, delimiter) {
+        None => None,
+        Some(first_idx) => Some((
+            &source[0..first_idx],
+            &source[first_idx + delimiter.len()..],
+        )),
+    }
+}
+
+/// If not found it returns `source.len()`.
+pub fn find_first_index_in_u8_slice(source: &[u8], query: &[u8]) -> Option<usize> {
+    for i in 0..source.len() {
+        if &source[i..i + query.len()] == query {
+            return Some(i);
+        }
+    }
+
+    None
+}
+
+pub fn u8_slice_into_char_slice(source: &[u8], target: &mut [char]) {
+    for i in 0..source.len() {
+        target[i] = source[i] as char;
+    }
 }
 
 /// It will stop when it reaches a 0 value byte. At the moment this has no overflow protection whatsoever.
@@ -233,8 +277,37 @@ pub fn pseudo_random_number(size: u8, seed: u32) -> Result<u32, Error> {
 mod tests {
     use anyhow::{Error, Result};
 
-    use super::pseudo_random_number;
-    use crate::utils::{pseudo_random_ascii, pseudo_random_ascii_alphanumeric, u32_count};
+    use super::{find_first_index_in_u8_slice, pseudo_random_number};
+    use crate::utils::{
+        pseudo_random_ascii, pseudo_random_ascii_alphanumeric, split_u8_slice_once, u32_count,
+    };
+
+    #[test]
+    fn find_first_index_in_slice_passes() {
+        let source_bytes = b"first\r\nsecond\r\nthird";
+        let query = b"\r\n";
+
+        assert_eq!(find_first_index_in_u8_slice(source_bytes, query), Some(5));
+    }
+
+    #[test]
+    fn split_slice_once_passes() {
+        let source_bytes = b"first\r\nsecond\r\nthird";
+        let delimiter = b"\r\n";
+
+        assert_eq!(
+            split_u8_slice_once(source_bytes, delimiter),
+            Some((b"first" as &[u8], b"second\r\nthird" as &[u8]))
+        );
+
+        let source_bytes: &[u8] = &[1, 2, 3, 4, 5, 6, 7, 8, 9][..];
+        let delimiter: &[u8] = &[3, 4][..];
+
+        assert_eq!(
+            split_u8_slice_once(source_bytes, delimiter),
+            Some((&[1, 2][..], &[5, 6, 7, 8, 9][..]))
+        );
+    }
 
     #[test]
     fn u32_count_passes() {
